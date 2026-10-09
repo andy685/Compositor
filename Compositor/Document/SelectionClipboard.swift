@@ -86,6 +86,64 @@ extension EditorSession {
         return (image, region)
     }
 
+    /// A downsampled, flattened canvas and selection mask for an image-generation edit request.
+    /// The canvas stays first so an API applies the mask to the image it belongs to; reference images follow it.
+    func makeAIGenerationSnapshot(maxSide: Int = 2048) throws -> AIGenerationCanvasSnapshot {
+        guard canEditLayers, !isMaskSelected, let document else { throw AIGenerationError.noDocument }
+        if selection?.isEmpty == true { throw AIGenerationError.emptySelection }
+        let canvas = CGRect(origin: .zero, size: document.size)
+        let destinationRect = (selection?.path.boundingBoxOfPath.integral ?? canvas).intersection(canvas)
+        guard !destinationRect.isNull, !destinationRect.isEmpty else { throw AIGenerationError.emptySelection }
+        let scale = min(1, CGFloat(maxSide) / max(destinationRect.width, destinationRect.height))
+        let width = max(1, Int((destinationRect.width * scale).rounded()))
+        let height = max(1, Int((destinationRect.height * scale).rounded()))
+        let sx = CGFloat(width) / destinationRect.width
+        let sy = CGFloat(height) / destinationRect.height
+
+        let context = try BrushRaster.context(width: width, height: height, mask: false)
+        context.scaleBy(x: sx, y: sy)
+        context.translateBy(x: -destinationRect.minX, y: -destinationRect.minY)
+        drawLiveComposite(document, in: context)
+        guard let image = context.makeImage() else { throw ExportError.render }
+
+        var coverage: CGImage?
+        var maskData: Data?
+        if let selection {
+            var transform = CGAffineTransform(scaleX: sx, y: sy)
+                .translatedBy(x: -destinationRect.minX, y: -destinationRect.minY)
+            guard let path = selection.path.copy(using: &transform) else { throw ExportError.render }
+            let resized = DocumentSelection(path: path, antialiased: selection.antialiased,
+                                            feather: selection.feather * min(sx, sy))
+            let selectionCoverage = try resized.coverage(width: width, height: height)
+            coverage = selectionCoverage
+            maskData = try AIGenerationImageCodec.transparentEditMaskPNG(from: selectionCoverage)
+        }
+        let imageData = try AIGenerationImageCodec.pngData(image)
+        guard imageData.count < 50 * 1024 * 1024 else { throw AIGenerationError.imageTooLarge }
+        return AIGenerationCanvasSnapshot(documentID: document.id, canvasSize: document.size, destinationRect: destinationRect,
+                                          inputWidth: width, inputHeight: height, imageData: imageData,
+                                          maskData: maskData, selectionCoverage: coverage)
+    }
+
+    /// Adds the generated result as a separate, full-canvas layer. With a selection, the generated pixels are
+    /// clipped to that selection so the original composite remains visible everywhere else.
+    func insertAIGeneratedImage(_ image: CGImage, snapshot: AIGenerationCanvasSnapshot) throws {
+        guard let document, document.id == snapshot.documentID else { throw AIGenerationError.documentChanged }
+        let fitted = try AIGenerationImageCodec.fit(image, width: snapshot.inputWidth, height: snapshot.inputHeight,
+                                                     clip: snapshot.selectionCoverage)
+        let thumbnail = try PixelInvert.thumbnail(of: fitted)
+        let name = InterfaceLocalization.string("AI Generation")
+        var layer = ImageLayer(asset: ImportedImage(image: fitted, thumbnail: thumbnail, name: name), origin: .zero)
+        layer.name = name
+        layer.transform = LayerTransform(origin: snapshot.destinationRect.origin, size: snapshot.destinationRect.size)
+        layer.parentID = activeLayer?.isGroup == true ? activeLayerID : activeLayer?.parentID
+        let index = document.layers.firstIndex { $0.id == activeLayerID }.map { $0 + 1 } ?? document.layers.count
+        beginEdit("AI Generation")
+        self.document?.layers.insert(layer, at: index)
+        activeLayerID = layer.id
+        endEdit()
+    }
+
     func copyMergedSelection() {
         guard canCopyMerged else { return }
         do {

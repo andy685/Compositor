@@ -933,7 +933,7 @@ private final class LayerCell: NSTableCellView, NSTextFieldDelegate {
         thumbnailHeight.constant = layerSize.height
         let key = ThumbnailKey(image: layer.asset.map { ObjectIdentifier($0.thumbnail) }, transform: layer.transform, canvas: canvas, editableText: editableText)
         if layerID != layer.id || thumbnailKey != key {
-            thumbnail.image = layer.adjustment.map { Self.adjustmentIcon($0.kind.symbol, description: $0.kind.rawValue, quarterTurnClockwise: $0.kind == .curves) }
+            thumbnail.image = layer.adjustment.map { Self.adjustmentIcon($0.kind.symbol, description: InterfaceLocalization.string($0.kind.rawValue), quarterTurnClockwise: $0.kind == .curves) }
                 ?? (layer.isGroup ? Self.folderIcon
                     : editableText ? Self.adjustmentIcon("textformat", description: "Editable text")
                     : CanvasThumbnail.layer(layer.asset?.thumbnail, transform: layer.transform, canvas: canvas, box: 36))
@@ -961,30 +961,36 @@ private final class LayerCell: NSTableCellView, NSTextFieldDelegate {
         linkButton.isEnabled = thumbnail.isEnabled
         linkButton.toolTip = layer.mask?.isLinked == false ? "Link layer and mask so they move together"
             : "Unlink layer and mask to move or transform them separately"
-        linkButton.setAccessibilityLabel(layer.mask?.isLinked == false ? "Link mask: \(layer.name)" : "Unlink mask: \(layer.name)")
+        linkButton.setAccessibilityLabel(InterfaceLocalization.string(layer.mask?.isLinked == false ? "Link mask" : "Unlink mask") + ": " + displayedName(for: layer))
         thumbnail.toolTip = editableText ? "Editable text layer" : "Select image pixels"
         maskThumbnail.toolTip = "Select layer mask; Option-click to view it alone; Shift-click to enable/disable; Cmd-click to select its black areas (Cmd-Shift adds, Cmd-Option subtracts)"
-        thumbnail.setAccessibilityLabel("Select \(editableText ? "text" : "image"): \(layer.name)")
-        maskThumbnail.setAccessibilityLabel("Select mask: \(layer.name)")
+        thumbnail.setAccessibilityLabel(InterfaceLocalization.string(editableText ? "Select text" : "Select image") + ": " + displayedName(for: layer))
+        maskThumbnail.setAccessibilityLabel(InterfaceLocalization.string("Select mask") + ": " + displayedName(for: layer))
         updateTarget()
         layerName = layer.name
         // A reused cell must not carry another row's half-finished rename.
         if renaming, layerID != layer.id { restoreLabel() }
-        if !renaming { nameLabel.stringValue = (layer.maskSourceID == nil ? "" : "↳ ") + layer.name }
-        dimensions.stringValue = layer.liveText != nil ? "Text · Double-click to edit" : layer.adjustment != nil ? "Adjustment · Double-click to edit" : layer.isGroup ? "Folder" : layer.sizeLabel
+        if !renaming { nameLabel.stringValue = (layer.maskSourceID == nil ? "" : "↳ ") + displayedName(for: layer) }
+        dimensions.stringValue = layer.liveText != nil ? InterfaceLocalization.string("Text · Double-click to edit")
+            : layer.adjustment != nil ? InterfaceLocalization.string("Adjustment · Double-click to edit")
+            : layer.isGroup ? InterfaceLocalization.string("Folder") : layer.sizeLabel
         if let source = layer.maskSourceID {
             let sourceName = session.document?.layers.first(where: { $0.id == source })?.name ?? "Missing source"
-            dimensions.stringValue = "Clipped to \(sourceName)"
-            dimensions.toolTip = "Clipping mask based on \(sourceName). Option-click the bottom of its row to release."
+            dimensions.stringValue = InterfaceLocalization.string("Clipped to") + " \(sourceName)"
+            dimensions.toolTip = InterfaceLocalization.string("Clipping mask based on") + " \(sourceName). " + InterfaceLocalization.string("Option-click the bottom of its row to release.")
         } else { dimensions.toolTip = nil }
         eye.image = NSImage(systemSymbolName: layer.isVisible ? "eye" : "eye.slash", accessibilityDescription: nil)
-        eye.setAccessibilityLabel("\(layer.isVisible ? "Hide" : "Show") \(layer.name)")
+        eye.setAccessibilityLabel(InterfaceLocalization.string(layer.isVisible ? "Hide" : "Show") + " " + displayedName(for: layer))
         eye.isEnabled = enabled
         eye.layerID = layer.id
         eye.session = session
         alphaValue = visible ? 1 : 0.35
     }
     private var maskThumbnailKey: ThumbnailKey?
+    private func displayedName(for layer: ImageLayer) -> String {
+        guard let adjustment = layer.adjustment, layer.name == adjustment.kind.rawValue else { return layer.name }
+        return InterfaceLocalization.string(layer.name)
+    }
     func selectEffect(at point: NSPoint, editing: Bool) -> Bool {
         guard let row = effectButtons.first(where: { $0.bounds.contains($0.convert(point, from: nil)) }) else { return false }
         row.select(editing: editing)
@@ -1037,7 +1043,7 @@ private final class LayerCell: NSTableCellView, NSTextFieldDelegate {
         // Show whatever name the layer ended up with, marked as the row shows it.
         if let layer = session.document?.layers.first(where: { $0.id == layerID }) {
             layerName = layer.name
-            nameLabel.stringValue = (layer.maskSourceID == nil ? "" : "↳ ") + layer.name
+            nameLabel.stringValue = (layer.maskSourceID == nil ? "" : "↳ ") + displayedName(for: layer)
         }
         // Hand focus back to the list, so tool shortcuts and the arrow keys work straight away.
         var ancestor = superview
@@ -1128,7 +1134,7 @@ private final class LayerEffectRow: NSView, NSDraggingSource {
     private let label: NSTextField
     init(session: EditorSession, layerID: UUID, kind: LayerEffectKind, enabled: Bool, indent: CGFloat) {
         self.session = session; self.layerID = layerID; self.kind = kind
-        label = NSTextField(labelWithString: kind.rawValue)
+        label = NSTextField(labelWithString: InterfaceLocalization.string(kind.rawValue))
         super.init(frame: .zero)
         wantsLayer = true
         translatesAutoresizingMaskIntoConstraints = false
@@ -1139,7 +1145,7 @@ private final class LayerEffectRow: NSView, NSDraggingSource {
         eye.contentTintColor = .secondaryLabelColor
         eye.target = self; eye.action = #selector(toggle)
         eye.isEnabled = session.canEditLayers
-        eye.setAccessibilityLabel((enabled ? "Hide " : "Show ") + kind.rawValue)
+        eye.setAccessibilityLabel(InterfaceLocalization.string(enabled ? "Hide" : "Show") + " " + InterfaceLocalization.string(kind.rawValue))
         label.font = .systemFont(ofSize: 11)
         label.textColor = enabled ? .labelColor : .secondaryLabelColor
         label.lineBreakMode = .byTruncatingTail
@@ -1152,10 +1158,10 @@ private final class LayerEffectRow: NSView, NSDraggingSource {
             label.centerYAnchor.constraint(equalTo: centerYAnchor),
             label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8)
         ])
-        toolTip = "Click to select; double-click to edit; Option-drag to copy " + kind.rawValue.lowercased()
+        toolTip = InterfaceLocalization.string("Click to select; double-click to edit; Option-drag to copy") + " " + InterfaceLocalization.string(kind.rawValue).lowercased()
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
-        setAccessibilityLabel(kind.rawValue + " effect")
+        setAccessibilityLabel(InterfaceLocalization.string(kind.rawValue) + " " + InterfaceLocalization.string("effect"))
         updateSelection()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }

@@ -253,6 +253,11 @@ final class EditorSession {
     /// The open filter (Filter menu), and the settings the next one starts from.
     var filterEdit: FilterEdit?
     var filterSettings = FilterSettings()
+    var aiGenerationPanelRequest = 0
+    var aiGenerationInitialPrompt = ""
+    var isGeneratingImage = false
+    @ObservationIgnored var aiGenerationTask: Task<Void, Never>?
+    @ObservationIgnored var aiGenerationTaskID: UUID?
     /// What Filter › Last Filter runs again.
     var lastFilter: FilterKind?
     @ObservationIgnored var hueSaturationTask: Task<Void, Never>?
@@ -673,19 +678,29 @@ final class EditorSession {
 
     func endEdit() { history.end(document: document, selection: activeLayerID) }
     var activeLayer: ImageLayer? { document?.layers.first { $0.id == activeLayerID } }
+    func requestAIGenerationPanel(prompt: String = "") {
+        aiGenerationInitialPrompt = prompt
+        aiGenerationPanelRequest += 1
+    }
+    func cancelAIGeneration() {
+        aiGenerationTask?.cancel()
+        aiGenerationTask = nil
+        aiGenerationTaskID = nil
+        isGeneratingImage = false
+    }
     /// How the Layers panel looks: grayed for what lasts (a dialog, a pending transform, crop or gradient, a long
     /// operation), but not for what only lasts while the mouse is down (a stroke, a move or Auto Select drag, moving
     /// pixels) or for a moment's work, which flashed the whole panel gray for a frame. `canEditLayers` still blocks
     /// layer changes through all of them; the panel's actions check it themselves.
     var layersLookEditable: Bool {
         selectionAmountOperation == nil && colorRange == nil && textDraft == nil && document != nil && !showsBusy
-            && !isImporting && !showsNewDocument && !showsImporter && renamingLayerID == nil
+            && !isImporting && !isGeneratingImage && !showsNewDocument && !showsImporter && renamingLayerID == nil
             && transformEdit?.persistent != true && cropRect == nil && gradientEdit == nil
             && hueSaturation == nil && levels == nil && filterEdit == nil && adjustmentEditingID == nil
     }
     var canEditLayers: Bool {
         _ = showsBusy
-        return selectionAmountOperation == nil && colorRange == nil && textDraft == nil && document != nil && brushStroke == nil && warpStroke == nil && !isProjectBusy && !isImporting && !showsNewDocument && !showsImporter && renamingLayerID == nil && transformEdit == nil && cropRect == nil && gradientEdit == nil && pixelMove == nil && hueSaturation == nil && levels == nil && filterEdit == nil && adjustmentEditingID == nil
+        return selectionAmountOperation == nil && colorRange == nil && textDraft == nil && document != nil && brushStroke == nil && warpStroke == nil && !isProjectBusy && !isImporting && !isGeneratingImage && !showsNewDocument && !showsImporter && renamingLayerID == nil && transformEdit == nil && cropRect == nil && gradientEdit == nil && pixelMove == nil && hueSaturation == nil && levels == nil && filterEdit == nil && adjustmentEditingID == nil
     }
 
     func addBlankLayer() {

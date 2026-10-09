@@ -5,11 +5,16 @@ import Sparkle
 struct CompositorApp: App {
     @NSApplicationDelegateAdaptor(CompositorApplicationDelegate.self) private var applicationDelegate
     @AppStorage("navigator.visible") private var showsNavigator = false
+    @AppStorage("interface.language") private var interfaceLanguage = "zh-Hans"
     private var session: EditorSession { applicationDelegate.session }
+    private var interfaceLocale: Locale {
+        interfaceLanguage == "system" ? .current : Locale(identifier: interfaceLanguage)
+    }
     var body: some Scene {
         Window("Compositor", id: "editor") {
             ProjectWorkspaceView(applicationDelegate: applicationDelegate).roundedControls()
         }
+            .environment(\.locale, interfaceLocale)
             .defaultSize(width: 1180, height: 780)
             // Files opened from Finder or dropped on the Dock icon go to the app delegate, which imports them into
             // the open window. Left to SwiftUI, each one builds a throwaway window and fades the editor out and back.
@@ -100,6 +105,27 @@ struct CompositorApp: App {
                 Group {
                     CommandGroup(after: .appInfo) {
                         Button("Check for Updates…") { applicationDelegate.updater.checkForUpdates(nil) }
+                        Menu("Language") {
+                            Button {
+                                interfaceLanguage = "system"
+                            } label: {
+                                if interfaceLanguage == "system" { Label("System Default", systemImage: "checkmark") }
+                                else { Text("System Default") }
+                            }
+                            Divider()
+                            Button {
+                                interfaceLanguage = "zh-Hans"
+                            } label: {
+                                if interfaceLanguage == "zh-Hans" { Label("简体中文", systemImage: "checkmark") }
+                                else { Text("简体中文") }
+                            }
+                            Button {
+                                interfaceLanguage = "en"
+                            } label: {
+                                if interfaceLanguage == "en" { Label("English", systemImage: "checkmark") }
+                                else { Text("English") }
+                            }
+                        }
                     }
                     CommandGroup(after: .toolbar) {
                         Button("Search Commands…") {
@@ -273,7 +299,7 @@ struct CompositorApp: App {
                     Button("Hue/Saturation…") { session.beginHueSaturation() }
                         .configuredKeyboardShortcut("u").disabled(!session.canAdjustColors)
                     ForEach([FilterKind.blackWhite, .colorBalance, .exposure, .gradientMap, .grain], id: \.self) { kind in
-                        Button("\(kind.rawValue)…") { session.beginFilter(kind) }
+                        Button(LocalizedStringKey(kind.rawValue + "…")) { session.beginFilter(kind) }
                             .disabled(!session.canAdjustColors || session.hueSaturation != nil)
                     }
                     Button(session.isMaskSelected ? "Invert Mask" : "Invert") { Task { await session.invertPixels() } }
@@ -301,21 +327,23 @@ struct CompositorApp: App {
                     }
                 }
                 CommandMenu("Filter") {
-                    Button(session.lastFilter.map { "Last Filter: " + $0.rawValue } ?? "Last Filter") {
+                    Button("Generative Fill…") { session.requestAIGenerationPanel() }
+                    Divider()
+                    Button(LocalizedStringKey(session.lastFilter.map { "Last Filter: " + $0.rawValue } ?? "Last Filter")) {
                         Task { await session.repeatLastFilter() }
                     }
                         // ⌃⌘F, as in Photoshop; ⌘F is the command palette.
                         .configuredKeyboardShortcut("f", modifiers: [.command, .control]).disabled(!session.canRepeatLastFilter)
                     Divider()
                     ForEach(FilterKind.allCases.filter { $0 != .contentAwareFill && !$0.isImageAdjustment }, id: \.self) { kind in
-                        Button("\(kind.rawValue)…") { session.beginFilter(kind) }
+                        Button(LocalizedStringKey(kind.rawValue + "…")) { session.beginFilter(kind) }
                             .disabled(!(kind == .vignette ? session.canVignette : session.canAdjustColors) || session.hueSaturation != nil)
                     }
                 }
                 CommandMenu("Layer") {
                     Menu("New Adjustment Layer") {
                         ForEach(AdjustmentKind.allCases, id: \.self) { kind in
-                            Button(kind.rawValue + (kind.isEditable ? "…" : "")) { session.addAdjustment(kind) }
+                            Button(LocalizedStringKey(kind.rawValue + (kind.isEditable ? "…" : ""))) { session.addAdjustment(kind) }
                         }
                     }.disabled(!session.canEditLayers || session.document == nil)
                     Button("Edit Adjustment…") {
@@ -361,7 +389,7 @@ struct CompositorApp: App {
                             .disabled(!session.canTransform)
                     }
                     Divider()
-                    Button(session.selectedEffect != nil ? "Delete " + session.selectedEffect!.kind.rawValue : session.isMaskSelected && session.activeLayer?.mask != nil ? "Delete Layer Mask" : session.selectedLayerIDs.count > 1 ? "Delete Layers" : "Delete Layer") {
+                    Button(LocalizedStringKey(session.selectedEffect != nil ? "Delete " + session.selectedEffect!.kind.rawValue : session.isMaskSelected && session.activeLayer?.mask != nil ? "Delete Layer Mask" : session.selectedLayerIDs.count > 1 ? "Delete Layers" : "Delete Layer")) {
                         session.deleteLayerOrMask()
                     }
                         .disabled(!session.canEditLayers || session.activeLayer == nil)

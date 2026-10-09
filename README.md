@@ -61,6 +61,11 @@ brew install --cask robbietilton-compositor
 - Live previews, limited to the selection when there is one
 - Last Filter (⌃⌘F) runs the last filter again with the same settings
 
+### AI image generation
+- Generative Fill edits the flattened canvas using a prompt and optional reference images. When a selection is active, it is sent as an edit mask and the result is clipped to that selection.
+- Results are inserted as a new, full-canvas layer so the original layers remain editable.
+- Configure an OpenAI-compatible image edits endpoint, model and quality in the Generative Fill panel. The API key is stored in macOS Keychain; the canvas and reference images are sent to the configured endpoint.
+
 ### Canvas and files
 - Multiple projects in tabs
 - Search Commands (⌘F): find every menu command and tool by name, as in Raycast or Obsidian, and run it with Return
@@ -88,7 +93,7 @@ brew install --cask robbietilton-compositor
 
 ## Translations
 
-Compositor is English only for now, and translation pull requests aren't being accepted. It's maintained by one person, every new string would need translating from then on, and translations in languages I don't read can't be reviewed. I'll revisit this once the app settles; until then, please don't open localization PRs.
+Compositor is available in English and Simplified Chinese. On first launch, the interface opens in Simplified Chinese; choose **Compositor > Language** to switch to English or follow the system language. The choice is saved for future launches. Interface strings are kept in `Compositor/Localizable.xcstrings`.
 
 ## Building
 
