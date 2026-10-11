@@ -93,7 +93,9 @@ final class ProjectController {
         panel.allowedContentTypes = [format.type]
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
-        panel.title = "Export " + format.rawValue
+        panel.title = InterfaceLocalization.string("Export " + format.rawValue)
+        panel.prompt = InterfaceLocalization.string("Save")
+        panel.nameFieldLabel = InterfaceLocalization.string("Save As:")
         panel.nameFieldStringValue = (session.projectURL?.deletingPathExtension().lastPathComponent ?? "Untitled")
             + "." + (format.type.preferredFilenameExtension ?? format.rawValue.lowercased())
         let response: NSApplication.ModalResponse
@@ -214,7 +216,9 @@ final class ProjectController {
             panel.canCreateDirectories = true
             panel.isExtensionHidden = false
             panel.nameFieldStringValue = session.projectURL?.lastPathComponent ?? "Untitled.comp"
-            panel.title = asNew ? "Save Project As" : "Save Project"
+            panel.title = InterfaceLocalization.string(asNew ? "Save Project As" : "Save Project")
+            panel.prompt = InterfaceLocalization.string("Save")
+            panel.nameFieldLabel = InterfaceLocalization.string("Save As:")
             let response: NSApplication.ModalResponse
             if let window { response = await panel.beginSheetModal(for: window) }
             else { response = await panel.begin() }
@@ -266,7 +270,8 @@ final class ProjectController {
             panel.allowsMultipleSelection = false
             panel.canChooseDirectories = false
             panel.treatsFilePackagesAsDirectories = false
-            panel.title = "Open Project"
+            panel.title = InterfaceLocalization.string("Open Project")
+            panel.prompt = InterfaceLocalization.string("Open")
             let response: NSApplication.ModalResponse
             if let window { response = await panel.beginSheetModal(for: window) }
             else { response = await panel.begin() }
@@ -336,11 +341,12 @@ final class ProjectController {
         await finishWriting()
         guard session.isModified, session.document != nil else { return true }
         let alert = NSAlert()
-        alert.messageText = "Save changes to \(session.projectURL?.lastPathComponent ?? "Untitled")?"
-        alert.informativeText = "Your changes will be lost if you don’t save them."
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Cancel")
-        alert.addButton(withTitle: "Don’t Save")
+        let projectName = session.projectURL?.lastPathComponent ?? InterfaceLocalization.string("Untitled")
+        alert.messageText = String(format: InterfaceLocalization.string("Save changes to %@?"), projectName)
+        alert.informativeText = InterfaceLocalization.string("Your changes will be lost if you don’t save them.")
+        alert.addButton(withTitle: InterfaceLocalization.string("Save"))
+        alert.addButton(withTitle: InterfaceLocalization.string("Cancel"))
+        alert.addButton(withTitle: InterfaceLocalization.string("Don’t Save"))
         let response = await show(alert)
         if response == .alertFirstButtonReturn { return await saveCurrent() }
         return response == .alertThirdButtonReturn

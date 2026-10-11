@@ -11284,8 +11284,8 @@
           }
         }
       }
-    }
-    ,"Generate Image": {
+    },
+    "Generate Image": {
       "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "生成图像"}}}
     },
     "Generate Fill": {
@@ -11302,6 +11302,51 @@
     },
     "Reference images and image API settings": {
       "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "参考图和图像 API 设置"}}}
+    },
+    "Save Project": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "保存项目"}}}
+    },
+    "Save Project As": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "项目另存为"}}}
+    },
+    "Open Project": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "打开项目"}}}
+    },
+    "Open": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "打开"}}}
+    },
+    "Save As:": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "存储为："}}}
+    },
+    "Export PNG": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "导出 PNG"}}}
+    },
+    "Export JPEG": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "导出 JPEG"}}}
+    },
+    "Save changes to %@?": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "要保存对“%@”的更改吗？"}}}
+    },
+    "Don’t Save": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "不保存"}}}
+    },
+    "Describe what should appear inside the selected area. The surrounding canvas guides the result.": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "描述要在选区内生成的内容，周围画布会为生成结果提供参考。"}}}
+    },
+    "Describe an image to create. The current canvas will guide the edit.": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "描述要生成的图像，当前画布会为生成结果提供参考。"}}}
+    },
+    "Close": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "关闭"}}}
+    },
+    "Your changes will be lost if you don’t save them.": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "如果不保存，更改将会丢失。"}}}
+    },
+    "Select Subject": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "抠主体"}}}
+    },
+    "Automatically select the foreground subject": {
+      "localizations": {"zh-Hans": {"stringUnit": {"state": "translated", "value": "自动识别并选中画面主体"}}}
     }
   },
   "version": "1.2"

@@ -85,6 +85,8 @@ final class ProjectWorkspace {
             panel.allowedContentTypes = [.compositorProject]
             panel.allowsMultipleSelection = true
             panel.treatsFilePackagesAsDirectories = false
+            panel.title = InterfaceLocalization.string("Open Project")
+            panel.prompt = InterfaceLocalization.string("Open")
             let response = if let window { await panel.beginSheetModal(for: window) } else { await panel.begin() }
             guard response == .OK else { return false }
             urls = panel.urls

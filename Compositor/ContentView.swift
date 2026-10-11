@@ -1,6 +1,11 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+private struct GenerativeFillBarSizeKey: PreferenceKey {
+    static var defaultValue = CGSize(width: 560, height: 58)
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
+}
+
 struct ContentView: View {
     /// The Layers panel's width, remembered across launches.
     @AppStorage("layersPanelWidth") private var layersPanelWidth = 252.0
@@ -17,6 +22,7 @@ struct ContentView: View {
     @State private var filterPanel = FloatingPanelController(name: "filterPanel")
     @State private var effectsPanel = FloatingPanelController(name: "effectsPanel")
     @State private var aiGenerationPanel = FloatingPanelController(name: "aiGenerationPanel")
+    @State private var generativeFillBarSize = CGSize(width: 560, height: 58)
     @State private var isDropTargeted = false
     /// The window's width, so the tab strip can use the toolbar's free space.
     @State private var windowWidth: CGFloat = 1180
@@ -115,9 +121,18 @@ struct ContentView: View {
                                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                             }
                             if session.selection != nil, session.document != nil {
-                                GenerativeFillContextBar(session: session)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                                    .padding(.bottom, 22)
+                                GeometryReader { geometry in
+                                    GenerativeFillContextBar(session: session, availableWidth: geometry.size.width - 20)
+                                        .frame(maxWidth: max(280, min(720, geometry.size.width - 20)))
+                                        .background {
+                                            GeometryReader { barGeometry in
+                                                Color.clear.preference(key: GenerativeFillBarSizeKey.self, value: barGeometry.size)
+                                            }
+                                        }
+                                        .position(generativeFillBarPosition(in: geometry.size, barSize: generativeFillBarSize))
+                                        .zIndex(5)
+                                }
+                                .onPreferenceChange(GenerativeFillBarSizeKey.self) { generativeFillBarSize = $0 }
                             }
                         }
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("editor")) } action: { canvasFrame = $0 }
@@ -309,6 +324,24 @@ struct ContentView: View {
     private func requestNewCanvas() {
         if let applicationDelegate { Task { await applicationDelegate.projects.newCanvas() } }
         else { session.clearProject() }
+    }
+    /// Places the generative-fill bar just below the selection, or above it near the canvas edge.
+    private func generativeFillBarPosition(in size: CGSize, barSize: CGSize) -> CGPoint {
+        guard let document = session.document, let selection = session.selection else {
+            return CGPoint(x: size.width / 2, y: size.height / 2)
+        }
+        let bounds = selection.path.boundingBoxOfPath
+        let topLeft = session.viewport.viewPoint(from: bounds.origin, documentSize: document.size)
+        let bottomRight = session.viewport.viewPoint(from: CGPoint(x: bounds.maxX, y: bounds.maxY), documentSize: document.size)
+        let selectionRect = CGRect(x: topLeft.x, y: topLeft.y,
+                                   width: bottomRight.x - topLeft.x, height: bottomRight.y - topLeft.y)
+        let halfWidth = min(barSize.width / 2, max(80, size.width / 2 - 8))
+        let x = min(size.width - halfWidth, max(halfWidth, selectionRect.midX))
+        let barHalfHeight = barSize.height / 2
+        let below = selectionRect.maxY + barHalfHeight + 36
+        let above = selectionRect.minY - barHalfHeight - 36
+        let y = below <= size.height - 8 ? below : max(barHalfHeight + 8, above)
+        return CGPoint(x: x, y: y)
     }
     private func refreshPanelTitles() {
         if session.levels != nil {

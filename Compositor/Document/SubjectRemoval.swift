@@ -116,6 +116,18 @@ extension EditorSession {
     /// same shape Remove Background masks out, as a selection instead.
     var canSelectSubject: Bool { canEditSelection && document != nil && !isProjectBusy }
 
+    /// The contextual cutout action is relevant only when the selection overlaps pixels on the active image layer.
+    var canCutOutSubjectFromSelection: Bool {
+        guard canSelectSubject, let document, let selection, !selection.isEmpty,
+              let layer = activeLayer, !layer.isGroup, layer.asset != nil,
+              document.effectiveVisibleIDs.contains(layer.id) else { return false }
+        let corners = [CGPoint.zero, CGPoint(x: 1, y: 0), CGPoint(x: 1, y: 1), CGPoint(x: 0, y: 1)]
+            .map(layer.transform.point)
+        guard let minX = corners.map(\.x).min(), let maxX = corners.map(\.x).max(),
+              let minY = corners.map(\.y).min(), let maxY = corners.map(\.y).max() else { return false }
+        return selection.path.boundingBoxOfPath.intersects(CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY))
+    }
+
     func selectSubject(mode: SelectionMode = .replace) async {
         guard canSelectSubject, let document,
               let context = try? BrushRaster.context(width: document.width, height: document.height, mask: false) else { return }

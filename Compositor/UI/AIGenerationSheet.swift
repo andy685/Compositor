@@ -36,28 +36,37 @@ struct AIGenerationSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Label(hasSelection ? "Generative Fill" : "Generate Image", systemImage: hasSelection ? "selection.pin.in.out" : "sparkles")
-                    .font(.headline)
+                HStack {
+                    Label(hasSelection ? "Generative Fill" : "Generate Image", systemImage: hasSelection ? "selection.pin.in.out" : "sparkles")
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        FloatingPanelController.closePanel(identifier: NSUserInterfaceItemIdentifier("aiGenerationPanel"))
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Close")
+                    .accessibilityLabel("Close")
+                }
                 Text(hasSelection
                      ? "Describe what should appear inside the selected area. The surrounding canvas guides the result."
                      : "Describe an image to create. The current canvas will guide the edit.")
                     .font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                TextEditor(text: $prompt)
+                TextField(hasSelection ? "What should fill the selection?" : "Describe the image…",
+                          text: $prompt, axis: .vertical)
                     .font(.body)
-                    .scrollContentBackground(.hidden)
-                    .padding(6)
-                    .frame(height: 110)
+                    .lineLimit(4...6)
+                    .textFieldStyle(.plain)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, minHeight: 110, maxHeight: 110, alignment: .topLeading)
                     .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
-                    .overlay(alignment: .topLeading) {
-                        if prompt.isEmpty {
-                            Text(hasSelection ? "What should fill the selection?" : "Describe the image…")
-                                .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 11).padding(.vertical, 14)
-                                .allowsHitTesting(false)
-                        }
-                    }
 
                 HStack {
                     Text("Reference images").font(.subheadline.weight(.medium))
@@ -255,6 +264,7 @@ struct AIGenerationPanelObserver: View {
 /// A Photoshop-style contextual task bar for an active pixel selection.
 struct GenerativeFillContextBar: View {
     @Bindable var session: EditorSession
+    let availableWidth: CGFloat
     @AppStorage("aiImage.contextBarEnabled") private var isEnabled = false
     @AppStorage("aiImage.endpoint") private var endpoint = "https://cloudapi.flowingcloud.com"
     @AppStorage("aiImage.model") private var model = "gpt-image-2"
@@ -263,17 +273,45 @@ struct GenerativeFillContextBar: View {
     @State private var errorMessage: String?
     @State private var infoMessage: String?
 
+    private var promptFieldMaxWidth: CGFloat {
+        max(120, min(400, availableWidth - 370))
+    }
+    private var promptFieldWidth: CGFloat {
+        let naturalWidth = prompt.reduce(CGFloat(42)) { width, character in
+            width + (character.isASCII ? 7 : 14)
+        }
+        return min(promptFieldMaxWidth, max(min(240, promptFieldMaxWidth), naturalWidth))
+    }
+    private var estimatedPromptLineCount: Int {
+        let naturalWidth = prompt.reduce(CGFloat(42)) { width, character in
+            width + (character.isASCII ? 7 : 14)
+        }
+        return min(8, max(1, Int(ceil(naturalWidth / promptFieldWidth))))
+    }
+
     var body: some View {
         VStack(spacing: 6) {
-            HStack(spacing: 10) {
+            HStack(alignment: estimatedPromptLineCount > 1 ? .bottom : .center, spacing: 10) {
                 Toggle("Generative Fill", isOn: $isEnabled)
                     .toggleStyle(.switch)
                     .fixedSize()
+                if session.canCutOutSubjectFromSelection {
+                    Button {
+                        Task { await session.selectSubject(mode: .replace) }
+                    } label: {
+                        Label("Select Subject", systemImage: "person.crop.rectangle")
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(session.isGeneratingImage)
+                    .help("Automatically select the foreground subject")
+                }
                 if isEnabled {
                     TextField("Describe what to fill…", text: $prompt, axis: .vertical)
-                        .lineLimit(1...3)
+                        .lineLimit(1...8)
+                        .multilineTextAlignment(.leading)
                         .textFieldStyle(.roundedBorder)
-                        .frame(minWidth: 240, maxWidth: 420)
+                        .frame(minWidth: promptFieldWidth, idealWidth: promptFieldWidth, maxWidth: promptFieldWidth,
+                               minHeight: 36, maxHeight: 180)
                         .onSubmit(generate)
                     Button(action: generate) {
                         if session.isGeneratingImage {
@@ -295,7 +333,7 @@ struct GenerativeFillContextBar: View {
                 }
             }
             if let errorMessage {
-                Text(errorMessage).font(.caption).foregroundStyle(.orange).lineLimit(2).frame(maxWidth: 420)
+                Text(errorMessage).font(.caption).foregroundStyle(.orange).lineLimit(2).frame(maxWidth: availableWidth - 20)
             } else if let infoMessage {
                 Text(infoMessage).font(.caption).foregroundStyle(.secondary)
             }
@@ -305,7 +343,7 @@ struct GenerativeFillContextBar: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(.white.opacity(0.12)))
         .shadow(color: .black.opacity(0.25), radius: 14, y: 5)
-        .fixedSize(horizontal: true, vertical: false)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func generate() {

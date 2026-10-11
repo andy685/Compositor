@@ -38,6 +38,7 @@ final class FloatingPanelController: NSObject, NSWindowDelegate {
         let wasVisible = panel.isVisible
         let topLeft = NSPoint(x: panel.frame.minX, y: panel.frame.maxY)
         panel.title = title
+        panel.standardWindowButton(.closeButton)?.isHidden = false
         // A hosting *view* sized once, not a controller with `.preferredContentSize`:
         // that option makes AppKit measure the SwiftUI view during its constraint pass,
         // and SwiftUI's measurement invalidates layout re-entrantly, which AppKit treats
@@ -84,8 +85,13 @@ final class FloatingPanelController: NSObject, NSWindowDelegate {
 
     var isVisible: Bool { panel?.isVisible == true }
 
+    static func closePanel(identifier: NSUserInterfaceItemIdentifier) {
+        NSApp.windows.first { $0.identifier == identifier }?.close()
+    }
+
     private func makePanel() -> NSPanel {
         let panel = NSPanel(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        panel.standardWindowButton(.closeButton)?.isHidden = false
         panel.identifier = identifier
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = true
