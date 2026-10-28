@@ -243,7 +243,7 @@ final class EditorSession {
     private var fileRequestWaiters: [CheckedContinuation<Void, Never>] = []
     var canStartProjectOperation: Bool {
         _ = showsBusy // Re-evaluate in the UI when a long operation starts or ends.
-        return selectionAmountOperation == nil && colorRange == nil && textDraft == nil && !isProjectBusy && !isImporting && brushStroke == nil && warpStroke == nil && levels == nil && !showsNewDocument && !showsImporter && renamingLayerID == nil && importError == nil && adjustmentEditingID == nil && !showsConversionSheet
+        return selectionAmountOperation == nil && colorRange == nil && textDraft == nil && !isProjectBusy && !isGeneratingImage && !isImporting && brushStroke == nil && warpStroke == nil && levels == nil && !showsNewDocument && !showsImporter && renamingLayerID == nil && importError == nil && adjustmentEditingID == nil && !showsConversionSheet
     }
     func waitForFileRequest() async {
         while !canStartProjectOperation {
@@ -355,6 +355,15 @@ final class EditorSession {
     /// The open filter (Filter menu), and the settings the next one starts from.
     var filterEdit: FilterEdit?
     var filterSettings = FilterSettings()
+    var aiGenerationPanelRequest = 0
+    var aiGenerationInitialPrompt = ""
+    var aiGenerationReferences: [AIGenerationReference] = []
+    var isGeneratingImage = false
+    var aiGenerationCompletionID = 0
+    var aiGenerationErrorMessage: String?
+    var aiGenerationStatusMessage: String?
+    @ObservationIgnored var aiGenerationTask: Task<Void, Never>?
+    @ObservationIgnored var aiGenerationTaskID: UUID?
     /// What Filter › Last Filter runs again.
     var lastFilter: FilterKind?
     @ObservationIgnored var hueSaturationTask: Task<Void, Never>?
@@ -815,7 +824,7 @@ final class EditorSession {
     /// stop it.
     var canEditLayersOnceTransformCommitted: Bool {
         _ = showsBusy
-        return selectionAmountOperation == nil && colorRange == nil && textDraft == nil && document != nil && brushStroke == nil && warpStroke == nil && !isProjectBusy && !isImporting && !showsNewDocument && !showsImporter && renamingLayerID == nil && cropRect == nil && gradientEdit == nil && pixelMove == nil && hueSaturation == nil && levels == nil && filterEdit == nil && adjustmentEditingID == nil
+        return selectionAmountOperation == nil && colorRange == nil && textDraft == nil && document != nil && brushStroke == nil && warpStroke == nil && !isProjectBusy && !isGeneratingImage && !isImporting && !showsNewDocument && !showsImporter && renamingLayerID == nil && cropRect == nil && gradientEdit == nil && pixelMove == nil && hueSaturation == nil && levels == nil && filterEdit == nil && adjustmentEditingID == nil
     }
 
     func addBlankLayer() {

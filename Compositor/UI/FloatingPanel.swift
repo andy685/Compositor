@@ -84,6 +84,10 @@ final class FloatingPanelController: NSObject, NSWindowDelegate {
 
     var isVisible: Bool { panel?.isVisible == true }
 
+    static func closePanel(identifier: NSUserInterfaceItemIdentifier) {
+        NSApp.windows.first { $0.identifier == identifier }?.close()
+    }
+
     private func makePanel() -> NSPanel {
         let panel = NSPanel(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false)
         panel.identifier = identifier

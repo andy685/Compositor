@@ -1,6 +1,11 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+private struct AIGenerationBarSizeKey: PreferenceKey {
+    static var defaultValue = CGSize(width: 560, height: 58)
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) { value = nextValue() }
+}
+
 struct ContentView: View {
     /// The Layers panel's width, remembered across launches.
     @AppStorage("layersPanelWidth") private var layersPanelWidth = 252.0
@@ -15,6 +20,8 @@ struct ContentView: View {
     @State private var colorRangePanel = FloatingPanelController(name: "colorRangePanel")
     @State private var filterPanel = FloatingPanelController(name: "filterPanel")
     @State private var effectsPanel = FloatingPanelController(name: "effectsPanel")
+    @State private var aiGenerationPanel = FloatingPanelController(name: "aiGenerationPanel")
+    @State private var aiGenerationBarSize = CGSize(width: 560, height: 58)
     @State private var isDropTargeted = false
     /// The window's width, so the tab strip can use the toolbar's free space.
     @State private var windowWidth: CGFloat = 1180
@@ -116,6 +123,20 @@ struct ContentView: View {
                                     .padding(12)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                             }
+                            if session.selection != nil, session.document != nil {
+                                GeometryReader { geometry in
+                                    GenerativeFillContextBar(session: session, availableWidth: geometry.size.width - 20)
+                                        .frame(maxWidth: max(280, min(720, geometry.size.width - 20)))
+                                        .background {
+                                            GeometryReader { barGeometry in
+                                                Color.clear.preference(key: AIGenerationBarSizeKey.self, value: barGeometry.size)
+                                            }
+                                        }
+                                        .position(aiGenerationBarPosition(in: geometry.size, barSize: aiGenerationBarSize))
+                                        .zIndex(5)
+                                }
+                                .onPreferenceChange(AIGenerationBarSizeKey.self) { aiGenerationBarSize = $0 }
+                            }
                         }
                         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("editor")) } action: { canvasFrame = $0 }
                     }
@@ -169,6 +190,9 @@ struct ContentView: View {
             if let applicationDelegate, applicationDelegate.projects.workspace == nil {
                 ProjectWindowBridge(controller: applicationDelegate.projects).frame(width: 0, height: 0)
             }
+        }
+        .background {
+            AIGenerationPanelObserver(session: session, panel: aiGenerationPanel).frame(width: 0, height: 0)
         }
         .frame(minWidth: 800, minHeight: 520)
         .coordinateSpace(name: "editor")
@@ -332,6 +356,22 @@ struct ContentView: View {
     private func requestNewCanvas() {
         if let applicationDelegate { Task { await applicationDelegate.projects.newCanvas() } }
         else { session.clearProject() }
+    }
+    private func aiGenerationBarPosition(in size: CGSize, barSize: CGSize) -> CGPoint {
+        guard let document = session.document, let selection = session.selection else {
+            return CGPoint(x: size.width / 2, y: size.height / 2)
+        }
+        let bounds = selection.coverageBounds
+        let first = session.viewport.viewPoint(from: bounds.origin, documentSize: document.size)
+        let last = session.viewport.viewPoint(from: CGPoint(x: bounds.maxX, y: bounds.maxY), documentSize: document.size)
+        let selectionRect = CGRect(x: first.x, y: first.y, width: last.x - first.x, height: last.y - first.y)
+        let halfWidth = min(barSize.width / 2, max(80, size.width / 2 - 8))
+        let x = min(size.width - halfWidth, max(halfWidth, selectionRect.midX))
+        let halfHeight = barSize.height / 2
+        let below = selectionRect.maxY + halfHeight + 36
+        let above = selectionRect.minY - halfHeight - 36
+        let y = below <= size.height - 8 ? below : max(halfHeight + 8, above)
+        return CGPoint(x: x, y: y)
     }
     private var welcome: some View {
         NewCanvasSheet(session: session,

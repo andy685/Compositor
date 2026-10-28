@@ -338,6 +338,8 @@ struct CompositorApp: App {
                     }
                 }
                 CommandMenu("Filter") {
+                    Button("Generative Fill…") { session.requestAIGenerationPanel() }
+                    Divider()
                     Button(session.lastFilter.map { "Last Filter: " + $0.rawValue } ?? "Last Filter") {
                         Task { await session.repeatLastFilter() }
                     }
